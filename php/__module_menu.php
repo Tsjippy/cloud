@@ -1,8 +1,8 @@
 <?php
-namespace SIM\CAPTCHA;
+namespace SIM\CLOUD;
 use SIM;
 
-const MODULE_VERSION		= '7.0.0';
+const MODULE_VERSION		= '8.0.0';
 DEFINE(__NAMESPACE__.'\MODULE_SLUG', strtolower(basename(dirname(__DIR__))));
 
 DEFINE(__NAMESPACE__.'\MODULE_PATH', plugin_dir_path(__DIR__));
@@ -16,185 +16,87 @@ add_filter('sim_submenu_description', function($description, $moduleSlug, $modul
 	ob_start();
 	?>
 	<p>
-		This module makes it possible to enable and use captcha on forms made with the formbuilder or on the wordpress default forms (login, register, reset password, comment)
+		This module makes it possible to upload files from the website to a OneDrive folder.<br>
 	</p>
 	<?php
 
 	return ob_get_clean();
 }, 10, 3);
 
-add_filter('sim_submenu_options', function($optionsHtml, $moduleSlug, $settings, $moduleName){
+add_filter('sim_submenu_options', function($optionsHtml, $moduleSlug, $settings){
 	//module slug should be the same as grandparent folder name
 	if($moduleSlug != MODULE_SLUG){
 		return $optionsHtml;
 	}
 
 	ob_start();
-	?>
-    <br>
-	<br>
-	Do you want to use Google's reCaptcha? (<a href='https://www.google.com/recaptcha/admin/create'>See here</a>)
-	<label class="switch">
-		<input type="checkbox" name="recaptcha" <?php if(isset($settings['recaptcha'])){echo 'checked';}?>>
-		<span class="slider round"></span>
-	</label>
 
-	<?php
-	if(isset($settings['recaptcha'])){
+	$clientId		= $settings['client_id'];
+	$clientSecret	= $settings['client_secret'];
+	$accessToken	= $settings['access_token'];
+
+	if(empty($clientId) || empty($clientSecret)){
 		?>
-		<br>
-		<br>
-		<label>
-			Your API key<br>
-			<input type='text' name='recaptcha[key]' value='<?php if(!empty($settings['recaptcha']["key"])){echo $settings['recaptcha']["key"];}?>' style='width:350px'>
-		</label>
-		<br>
-		<br>
-		<label>
-			API key type<br>
-			<label>
-				<input type='radio' name='recaptcha[keytype]' value='v2' <?php if(!empty($settings['recaptcha']["keytype"]) && $settings['recaptcha']["keytype"] == 'v2'){echo 'checked';}?>>
-				v2
-			</label>
-			<label>
-				<input type='radio' name='recaptcha[keytype]' value='v3' <?php if(!empty($settings['recaptcha']["keytype"]) && $settings['recaptcha']["keytype"] == 'v3'){echo 'checked';}?>>
-				v3 / Enterprise
-			</label>
-		</label>
-		<br>
-		<br>
-		<label>
-			Your secret key<br>
-			<input type='text' name='recaptcha[secret]' value='<?php if(!empty($settings['recaptcha']['secret'])){echo $settings['recaptcha']['secret'];}?>' style='width:350px'>
-		</label>
-		<br>
-		<br>
-		<table style='border:none'>
-			<tr>
-				<td>
-					Use on login form
-				</td>
-				<td>
-					<label class="switch">
-						<input type="checkbox" name="recaptcha[login]" <?php if(isset($settings['recaptcha']['login'])){echo 'checked';}?>>
-						<span class="slider round"></span>
-					</label>
-				</td>
-			</tr>
-			<tr>
-				<td>
-					Use on password reset form
-				</td>
-				<td>
-					<label class="switch">
-						<input type="checkbox" name="recaptcha[password]" <?php if(isset($settings['recaptcha']['password'])){echo 'checked';}?>>
-						<span class="slider round"></span>
-					</label>
-				</td>
-			</tr>
-			<tr>
-				<td>
-					Use on new user form
-				</td>
-				<td>
-					<label class="switch">
-						<input type="checkbox" name="recaptcha[newuser]" <?php if(isset($settings['recaptcha']['newuser'])){echo 'checked';}?>>
-						<span class="slider round"></span>
-					</label>			
-				</td>
-			</tr>
-			<tr>
-				<td>
-					Use on comment form
-				</td>
-				<td>
-					<label class="switch">
-						<input type="checkbox" name="recaptcha[comment]" <?php if(isset($settings['recaptcha']['comment'])){echo 'checked';}?>>
-						<span class="slider round"></span>
-					</label>			
-				</td>
-			</tr>
-		</table>	
-		<?php	
-	}
-
-	?>
-	<br>
-	<br>
-	Do you want to use Cloudflare's Turnstile? (<a href='https://www.cloudflare.com/en-gb/products/turnstile/#Page-Pricing-AS'>See here</a>)
-	<label class="switch">
-		<input type="checkbox" name="turnstile" <?php if(isset($settings['turnstile'])){echo 'checked';}?>>
-		<span class="slider round"></span>
-	</label>
-
-	<?php
-	if(isset($settings['turnstile'])){
-		?>
-		<br>
-		<br>
-		<label>
-			Your API key<br>
-			<input type='text' name='turnstile[key]' value='<?php if(!empty($settings['turnstile']['key'])){echo $settings['turnstile']['key'];}?>' style='width:350px'>
-		</label>
-		<br>
-		<label>
-			Your secret key<br>
-			<input type='text' name='turnstile[secretkey]' value='<?php if(!empty($settings['turnstile']['secretkey'])){echo $settings['turnstile']['secretkey'];}?>' style='width:350px'>
-		</label>
-		<br>
-		<br>
-		<table style='border:none'>
-			<tr>
-				<td>
-					Use on login form
-				</td>
-				<td>
-					<label class="switch">
-						<input type="checkbox" name="turnstile[login]" <?php if(isset($settings['turnstile']['login'])){echo 'checked';}?>>
-						<span class="slider round"></span>
-					</label>
-				</td>
-			</tr>
-			<tr>
-				<td>
-					Use on password reset form
-				</td>
-				<td>
-					<label class="switch">
-						<input type="checkbox" name="turnstile[password]" <?php if(isset($settings['turnstile']['password'])){echo 'checked';}?>>
-						<span class="slider round"></span>
-					</label>
-				</td>
-			</tr>
-			<tr>
-				<td>
-					Use on new user form
-				</td>
-				<td>
-					<label class="switch">
-						<input type="checkbox" name="turnstile[newuser]" <?php if(isset($settings['turnstile']['newuser'])){echo 'checked';}?>>
-						<span class="slider round"></span>
-					</label>			
-				</td>
-			</tr>
-			<tr>
-				<td>
-					Use on comment form
-				</td>
-				<td>
-					<label class="switch">
-						<input type="checkbox" name="turnstile[comment]" <?php if(isset($settings['turnstile']['comment'])){echo 'checked';}?>>
-						<span class="slider round"></span>
-					</label>			
-				</td>
-			</tr>
-		</table>
-
+		<div id='set_onedrive_id'>
+			<h2>Connect to Onedrive</h2>
+			<p>
+				It seems you are not connected to OneDrive.<br>
+				You need a OneDrive app to connect.<br>
+				You can create such an app on <a href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade">Azure</a>.<br>
+				For more information see this <a href="https://github.com/krizalys/onedrive-php-sdk">link</a>.<br>
+					Make sure it has the following permissions:<br>
+					'files.read',<br>
+					'files.readwrite',<br>
+				<br>
+				Once you are done you will be redirected to a page containing the app details.<br>
+				Copy the "Client identifier" and the "Client secret" in the fields below.<br>
+				Now click "Save OneDrive options".<br>
+			</p>
+		</div>
 		<?php
+	}elseif(!empty($_GET['error'])){
+		?>
+			<div class='error'>
+				<?php
+				echo $_GET['error_description'];
+				?>
+			</div>
+		<?php
+	}elseif(empty($accessToken)){
+		$onedriveApi		= new OnedriveConnector();
+
+		$onedriveApi->login();
+	}else{
+		$onedriveApi		= new OnedriveConnector();
+
+		$onedriveApi->getToken();
 	}
+	?>
+	<div class="settings-section">
+		<h2>API Settings</h2>
+		<label>
+			Client ID<br>
+			<input type="text" name="client_id" value="<?php echo $clientId;?>" style='width: 500px;'>
+		</label>
+		<br>
+
+		<label>
+			Client Secret<br>
+			<input type="text" name="client_secret" value="<?php echo $clientSecret;?>" style='width: 500px;'>
+		</label>
+		<br>
+
+		<label <?php if(empty($clientSecret)){echo 'style="display:none;"';}?>>
+			Access Token<br>
+			<input type="text" name="access_token" value="<?php echo $accessToken;?>" style='width: 500px;'>
+		</label>
+		
+	</div>
+	<br>
+	<?php
 
 	return ob_get_clean();
-}, 10, 4);
+}, 10, 3);
 
 add_filter('sim_module_data', function($dataHtml, $moduleSlug, $settings){
 	//module slug should be the same as grandparent folder name
