@@ -1,75 +1,205 @@
 <?php
-namespace SIM\CONTENTFILTER;
+namespace SIM\CAPTCHA;
 use SIM;
 
-const MODULE_VERSION		= '8.0.0';
+const MODULE_VERSION		= '7.0.0';
 DEFINE(__NAMESPACE__.'\MODULE_SLUG', strtolower(basename(dirname(__DIR__))));
 
-add_action('sim_module_activated', function($moduleSlug){
-	//module slug should be the same as grandparent folder name
-	if($moduleSlug != MODULE_SLUG)	{return;}
-	
-	//Create a public category if it does not exist
-	wp_create_category('Public');
-	wp_create_category('Confidential');
-});
+DEFINE(__NAMESPACE__.'\MODULE_PATH', plugin_dir_path(__DIR__));
 
-add_filter('sim_submenu_description', function($description, $moduleSlug){
-	//module slug should be the same as the constant
-	if($moduleSlug != MODULE_SLUG)	{
-		return $description;
-	}
-
-	ob_start();
-	?>
-	<p>
-		This module filters all content to be only available to logged-in users.<br>
-		Only content with the public category is visible to non-logged-in users.<br>
-		It also makes it possible to move files to a private folder so that it is not directly accessable.<br>
-		<br>
-		It adds one shortcode: 'content_filter' which makes it possible to limit certain parts of a page or post to certain groups.<br>
-		This shortcode has two properties: roles and inversed.<br>
-		Roles define the roles who can see the content.<br>
-		If inversed is set to true, roles define the roles who cannot see the content.<br>
-		Use like this: <code>[content_filter roles='administrator, otherroles']This has limited visibility[/content_filter]</code>
-	</p>
-	<?php
-
-	return ob_get_clean();
-}, 10, 2);
-
-add_filter('sim_submenu_options', function($optionsHtml, $moduleSlug, $settings){
-	global $wp_roles;
-
+add_filter('sim_submenu_options', function($optionsHtml, $moduleSlug, $settings, $moduleName){
 	//module slug should be the same as grandparent folder name
 	if($moduleSlug != MODULE_SLUG){
 		return $optionsHtml;
 	}
 
 	ob_start();
+	?>
+    <br>
+	<br>
+	Do you want to use Google's reCaptcha? (<a href='https://www.google.com/recaptcha/admin/create'>See here</a>)
+	<label class="switch">
+		<input type="checkbox" name="recaptcha" <?php if(isset($settings['recaptcha'])){echo 'checked';}?>>
+		<span class="slider round"></span>
+	</label>
 
-	$roles	= $wp_roles->role_names;
-    ?>
-	<label>
-		<input type="checkbox" name="default_status" value="private" <?php if(isset($settings['default_status']) && $settings['default_status'] == 'private'){echo 'checked';}?>>
-		Make uploaded media private by default
-	</label>
-	<br>
-	<br>
-	<label>
-		Disallow acces to pages with the confidential category for the following user roles:<br>
-			<?php
-			foreach($roles as $key=>$role){
-				?>
-				<label>
-					<input type="checkbox" name="confidential-roles[]" value="<?php echo $key;?>" <?php if(is_array($settings['confidential-roles']) && in_array($key, $settings['confidential-roles'])){echo 'checked';}?>>
-					<?php echo $role;?>
-				</label>
-				<br>
-				<?php
-			}
-			?>
-	</label>
 	<?php
+	if(isset($settings['recaptcha'])){
+		?>
+		<br>
+		<br>
+		<label>
+			Your API key<br>
+			<input type='text' name='recaptcha[key]' value='<?php if(!empty($settings['recaptcha']["key"])){echo $settings['recaptcha']["key"];}?>' style='width:350px'>
+		</label>
+		<br>
+		<br>
+		<label>
+			API key type<br>
+			<label>
+				<input type='radio' name='recaptcha[keytype]' value='v2' <?php if(!empty($settings['recaptcha']["keytype"]) && $settings['recaptcha']["keytype"] == 'v2'){echo 'checked';}?>>
+				v2
+			</label>
+			<label>
+				<input type='radio' name='recaptcha[keytype]' value='v3' <?php if(!empty($settings['recaptcha']["keytype"]) && $settings['recaptcha']["keytype"] == 'v3'){echo 'checked';}?>>
+				v3 / Enterprise
+			</label>
+		</label>
+		<br>
+		<br>
+		<label>
+			Your secret key<br>
+			<input type='text' name='recaptcha[secret]' value='<?php if(!empty($settings['recaptcha']['secret'])){echo $settings['recaptcha']['secret'];}?>' style='width:350px'>
+		</label>
+		<br>
+		<br>
+		<table style='border:none'>
+			<tr>
+				<td>
+					Use on login form
+				</td>
+				<td>
+					<label class="switch">
+						<input type="checkbox" name="recaptcha[login]" <?php if(isset($settings['recaptcha']['login'])){echo 'checked';}?>>
+						<span class="slider round"></span>
+					</label>
+				</td>
+			</tr>
+			<tr>
+				<td>
+					Use on password reset form
+				</td>
+				<td>
+					<label class="switch">
+						<input type="checkbox" name="recaptcha[password]" <?php if(isset($settings['recaptcha']['password'])){echo 'checked';}?>>
+						<span class="slider round"></span>
+					</label>
+				</td>
+			</tr>
+			<tr>
+				<td>
+					Use on new user form
+				</td>
+				<td>
+					<label class="switch">
+						<input type="checkbox" name="recaptcha[newuser]" <?php if(isset($settings['recaptcha']['newuser'])){echo 'checked';}?>>
+						<span class="slider round"></span>
+					</label>			
+				</td>
+			</tr>
+			<tr>
+				<td>
+					Use on comment form
+				</td>
+				<td>
+					<label class="switch">
+						<input type="checkbox" name="recaptcha[comment]" <?php if(isset($settings['recaptcha']['comment'])){echo 'checked';}?>>
+						<span class="slider round"></span>
+					</label>			
+				</td>
+			</tr>
+		</table>	
+		<?php	
+	}
+
+	?>
+	<br>
+	<br>
+	Do you want to use Cloudflare's Turnstile? (<a href='https://www.cloudflare.com/en-gb/products/turnstile/#Page-Pricing-AS'>See here</a>)
+	<label class="switch">
+		<input type="checkbox" name="turnstile" <?php if(isset($settings['turnstile'])){echo 'checked';}?>>
+		<span class="slider round"></span>
+	</label>
+
+	<?php
+	if(isset($settings['turnstile'])){
+		?>
+		<br>
+		<br>
+		<label>
+			Your API key<br>
+			<input type='text' name='turnstile[key]' value='<?php if(!empty($settings['turnstile']['key'])){echo $settings['turnstile']['key'];}?>' style='width:350px'>
+		</label>
+		<br>
+		<label>
+			Your secret key<br>
+			<input type='text' name='turnstile[secretkey]' value='<?php if(!empty($settings['turnstile']['secretkey'])){echo $settings['turnstile']['secretkey'];}?>' style='width:350px'>
+		</label>
+		<br>
+		<br>
+		<table style='border:none'>
+			<tr>
+				<td>
+					Use on login form
+				</td>
+				<td>
+					<label class="switch">
+						<input type="checkbox" name="turnstile[login]" <?php if(isset($settings['turnstile']['login'])){echo 'checked';}?>>
+						<span class="slider round"></span>
+					</label>
+				</td>
+			</tr>
+			<tr>
+				<td>
+					Use on password reset form
+				</td>
+				<td>
+					<label class="switch">
+						<input type="checkbox" name="turnstile[password]" <?php if(isset($settings['turnstile']['password'])){echo 'checked';}?>>
+						<span class="slider round"></span>
+					</label>
+				</td>
+			</tr>
+			<tr>
+				<td>
+					Use on new user form
+				</td>
+				<td>
+					<label class="switch">
+						<input type="checkbox" name="turnstile[newuser]" <?php if(isset($settings['turnstile']['newuser'])){echo 'checked';}?>>
+						<span class="slider round"></span>
+					</label>			
+				</td>
+			</tr>
+			<tr>
+				<td>
+					Use on comment form
+				</td>
+				<td>
+					<label class="switch">
+						<input type="checkbox" name="turnstile[comment]" <?php if(isset($settings['turnstile']['comment'])){echo 'checked';}?>>
+						<span class="slider round"></span>
+					</label>			
+				</td>
+			</tr>
+		</table>
+
+		<?php
+	}
+
 	return ob_get_clean();
+}, 10, 4);
+
+add_filter('sim_module_data', function($dataHtml, $moduleSlug, $settings){
+	//module slug should be the same as grandparent folder name
+	if($moduleSlug != MODULE_SLUG){
+		return $dataHtml;
+	}
+
+	return $dataHtml;
 }, 10, 3);
+
+add_filter('sim_email_settings', function($optionsHtml, $moduleSlug, $settings, $moduleName){
+	//module slug should be the same as grandparent folder name
+	if($moduleSlug != MODULE_SLUG){
+		return $optionsHtml;
+	}
+
+	ob_start();
+	
+    ?>
+
+	<?php
+
+	return ob_get_clean();
+}, 10, 4);
