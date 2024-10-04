@@ -1,13 +1,20 @@
 <?php
-namespace SIM\CLOUD;
+namespace SIM\CONTENTFILTER;
 use SIM;
 
 const MODULE_VERSION		= '8.0.0';
 DEFINE(__NAMESPACE__.'\MODULE_SLUG', strtolower(basename(dirname(__DIR__))));
 
-DEFINE(__NAMESPACE__.'\MODULE_PATH', plugin_dir_path(__DIR__));
+add_action('sim_module_activated', function($moduleSlug){
+	//module slug should be the same as grandparent folder name
+	if($moduleSlug != MODULE_SLUG)	{return;}
+	
+	//Create a public category if it does not exist
+	wp_create_category('Public');
+	wp_create_category('Confidential');
+});
 
-add_filter('sim_submenu_description', function($description, $moduleSlug, $moduleName){
+add_filter('sim_submenu_description', function($description, $moduleSlug){
 	//module slug should be the same as the constant
 	if($moduleSlug != MODULE_SLUG)	{
 		return $description;
@@ -16,14 +23,24 @@ add_filter('sim_submenu_description', function($description, $moduleSlug, $modul
 	ob_start();
 	?>
 	<p>
-		This module makes it possible to upload files from the website to a OneDrive folder.<br>
+		This module filters all content to be only available to logged-in users.<br>
+		Only content with the public category is visible to non-logged-in users.<br>
+		It also makes it possible to move files to a private folder so that it is not directly accessable.<br>
+		<br>
+		It adds one shortcode: 'content_filter' which makes it possible to limit certain parts of a page or post to certain groups.<br>
+		This shortcode has two properties: roles and inversed.<br>
+		Roles define the roles who can see the content.<br>
+		If inversed is set to true, roles define the roles who cannot see the content.<br>
+		Use like this: <code>[content_filter roles='administrator, otherroles']This has limited visibility[/content_filter]</code>
 	</p>
 	<?php
 
 	return ob_get_clean();
-}, 10, 3);
+}, 10, 2);
 
 add_filter('sim_submenu_options', function($optionsHtml, $moduleSlug, $settings){
+	global $wp_roles;
+
 	//module slug should be the same as grandparent folder name
 	if($moduleSlug != MODULE_SLUG){
 		return $optionsHtml;
@@ -31,93 +48,28 @@ add_filter('sim_submenu_options', function($optionsHtml, $moduleSlug, $settings)
 
 	ob_start();
 
-	$clientId		= $settings['client_id'];
-	$clientSecret	= $settings['client_secret'];
-	$accessToken	= $settings['access_token'];
-
-	if(empty($clientId) || empty($clientSecret)){
-		?>
-		<div id='set_onedrive_id'>
-			<h2>Connect to Onedrive</h2>
-			<p>
-				It seems you are not connected to OneDrive.<br>
-				You need a OneDrive app to connect.<br>
-				You can create such an app on <a href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade">Azure</a>.<br>
-				For more information see this <a href="https://github.com/krizalys/onedrive-php-sdk">link</a>.<br>
-					Make sure it has the following permissions:<br>
-					'files.read',<br>
-					'files.readwrite',<br>
-				<br>
-				Once you are done you will be redirected to a page containing the app details.<br>
-				Copy the "Client identifier" and the "Client secret" in the fields below.<br>
-				Now click "Save OneDrive options".<br>
-			</p>
-		</div>
-		<?php
-	}elseif(!empty($_GET['error'])){
-		?>
-			<div class='error'>
-				<?php
-				echo $_GET['error_description'];
-				?>
-			</div>
-		<?php
-	}elseif(empty($accessToken)){
-		$onedriveApi		= new OnedriveConnector();
-
-		$onedriveApi->login();
-	}else{
-		$onedriveApi		= new OnedriveConnector();
-
-		$onedriveApi->getToken();
-	}
-	?>
-	<div class="settings-section">
-		<h2>API Settings</h2>
-		<label>
-			Client ID<br>
-			<input type="text" name="client_id" value="<?php echo $clientId;?>" style='width: 500px;'>
-		</label>
-		<br>
-
-		<label>
-			Client Secret<br>
-			<input type="text" name="client_secret" value="<?php echo $clientSecret;?>" style='width: 500px;'>
-		</label>
-		<br>
-
-		<label <?php if(empty($clientSecret)){echo 'style="display:none;"';}?>>
-			Access Token<br>
-			<input type="text" name="access_token" value="<?php echo $accessToken;?>" style='width: 500px;'>
-		</label>
-		
-	</div>
-	<br>
-	<?php
-
-	return ob_get_clean();
-}, 10, 3);
-
-add_filter('sim_module_data', function($dataHtml, $moduleSlug, $settings){
-	//module slug should be the same as grandparent folder name
-	if($moduleSlug != MODULE_SLUG){
-		return $dataHtml;
-	}
-
-	return $dataHtml;
-}, 10, 3);
-
-add_filter('sim_email_settings', function($optionsHtml, $moduleSlug, $settings, $moduleName){
-	//module slug should be the same as grandparent folder name
-	if($moduleSlug != MODULE_SLUG){
-		return $optionsHtml;
-	}
-
-	ob_start();
-	
+	$roles	= $wp_roles->role_names;
     ?>
-
+	<label>
+		<input type="checkbox" name="default_status" value="private" <?php if(isset($settings['default_status']) && $settings['default_status'] == 'private'){echo 'checked';}?>>
+		Make uploaded media private by default
+	</label>
+	<br>
+	<br>
+	<label>
+		Disallow acces to pages with the confidential category for the following user roles:<br>
+			<?php
+			foreach($roles as $key=>$role){
+				?>
+				<label>
+					<input type="checkbox" name="confidential-roles[]" value="<?php echo $key;?>" <?php if(is_array($settings['confidential-roles']) && in_array($key, $settings['confidential-roles'])){echo 'checked';}?>>
+					<?php echo $role;?>
+				</label>
+				<br>
+				<?php
+			}
+			?>
+	</label>
 	<?php
-
 	return ob_get_clean();
-}, 10, 4);
+}, 10, 3);
